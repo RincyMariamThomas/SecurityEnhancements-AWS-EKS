@@ -1,0 +1,83 @@
+//Previous file: .github/workflows/main.yml - https://github.com/vi-kinn/Doctors-Office-Appointment-site/blob/main/.github/workflows/main.yml
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 156041403412.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY_1: midterm/backend
+  ECR_REPOSITORY_2: midterm/frontend
+  CLUSTER_NAME: group8
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials from Secrets Manager
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::156041403412:role/github-actions-role
+        aws-region: ${{ env.AWS_REGION }}
+        # Change: Use AWS Secrets Manager to retrieve credentials securely
+        secrets-manager: my-secret-arn
+
+    - name: Update kube config
+      run: |
+        aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+    
+    - name: Login to Amazon ECR
+      run: |
+        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+    # Build and push Docker images for Backend
+    - name: Build Docker image for Backend
+      run: |
+        docker build -t $ECR_REPOSITORY_1:latest -f doctor-office-backend/Dockerfile doctor-office-backend/
+    - name: Tag and push Docker image for Backend
+      run: |
+        docker tag $ECR_REPOSITORY_1:latest $ECR_REGISTRY/$ECR_REPOSITORY_1:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_1:latest
+
+    # Build and push Docker image for Frontend
+    - name: Build Docker image for Frontend
+      run: |
+        docker build -t $ECR_REPOSITORY_2:latest -f doctor-office-frontend/Dockerfile doctor-office-frontend/
+    - name: Tag and push Docker image for Frontend
+      run: |
+        docker tag $ECR_REPOSITORY_2:latest $ECR_REGISTRY/$ECR_REPOSITORY_2:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_2:latest
+
+    - name: Update EKS Deployment for Backend
+      run: |
+        kubectl set image deployment/backend backend=$ECR_REGISTRY/$ECR_REPOSITORY_1:latest
+    - name: Update EKS Deployment for Frontend
+      run: |
+        kubectl set image deployment/frontend frontend=$ECR_REGISTRY/$ECR_REPOSITORY_2:latest
+
+    #Change: Implement Horizontal Pod Autoscaler (HPA) for both backend and frontend
+    - name: Enable Autoscaling for Backend
+      run: |
+        kubectl autoscale deployment backend --cpu-percent=50 --min=1 --max=10 --namespace=midterm
+
+    - name: Enable Autoscaling for Frontend
+      run: |
+        kubectl autoscale deployment frontend --cpu-percent=50 --min=1 --max=10 --namespace=midterm
+
+    #Change: Adding health check configuration to monitor container health
+    - name: Add Health Checks
+      run: |
+        kubectl patch deployment backend --patch '{"spec":{"template":{"spec":{"containers":[{"name":"backend","livenessProbe":{"httpGet":{"path":"/health","port":5000},"initialDelaySeconds":3,"periodSeconds":3}}]}}}}' --namespace=midterm
+        kubectl patch deployment frontend --patch '{"spec":{"template":{"spec":{"containers":[{"name":"frontend","livenessProbe":{"httpGet":{"path":"/health","port":3000},"initialDelaySeconds":3,"periodSeconds":3}}]}}}}' --namespace=midterm

@@ -1,0 +1,31 @@
+//Previous file: doctor-office-frontend/k8-manifests/deployment.yaml - https://github.com/vi-kinn/Doctors-Office-Appointment-site/blob/main/doctor-office-frontend/k8-manifests/deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  replicas: 2 # Increased replicas to improve availability and load distribution
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: 474668414952.dkr.ecr.us-east-1.amazonaws.com/doctor-office-frontend
+          resources:
+            requests:
+              cpu: "0.5" # Adjusted CPU resources based on load testing
+              memory: "256Mi" # Adjusted memory allocation for better performance
+            limits:
+              cpu: "1" # Optimized CPU limits to handle traffic spikes
+              memory: "512Mi" # Optimized memory limits for increased load
+          ports:
+          - containerPort: 3000
+      serviceAccountName: frontend-service-account  # Added IAM Role for frontend access permissions

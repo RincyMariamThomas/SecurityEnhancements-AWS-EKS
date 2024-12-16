@@ -4,11 +4,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: backend-role-binding
-  namespace: default
+  namespace: midterm
 subjects:
   - kind: ServiceAccount
     name: backend-service-account
-    namespace: default
+    namespace: midterm
 roleRef:
   kind: Role
   name: backend-role

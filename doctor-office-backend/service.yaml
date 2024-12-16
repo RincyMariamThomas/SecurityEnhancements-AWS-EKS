@@ -1,0 +1,14 @@
+//Previous File: doctor-office-backend/k8-manifests/service.yaml - https://github.com/vi-kinn/Doctors-Office-Appointment-site/blob/main/doctor-office-backend/k8-manifests/service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: ClusterIP  # Ensures the service is only accessible within the cluster
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000

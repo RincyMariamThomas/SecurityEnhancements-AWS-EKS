@@ -9,28 +9,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Using AWS Secrets Manager to fetch DynamoDB credentials
-// Change: Replaced hardcoded credentials with Secrets Manager to ensure security
-const secretsManager = new AWS.SecretsManager();
-async function getDBCredentials() {
-  const secretValue = await secretsManager.getSecretValue({ SecretId: 'dynamo-secret' }).promise();
-  return JSON.parse(secretValue.SecretString);
+// Fetch AWS credentials securely from Secrets Manager instead of hardcoding them
+const secretManager = new AWS.SecretsManager();
+const secretName = "DynamoDBCredentials";
+
+async function getAWSCredentials() {
+  try {
+    // Retrieve AWS credentials securely
+    const data = await secretManager.getSecretValue({ SecretId: secretName }).promise();
+    const secret = JSON.parse(data.SecretString);
+
+    // Configure AWS with secure credentials
+    AWS.config.update({
+      region: process.env.AWS_REGION,
+      accessKeyId: secret.AWS_ACCESS_KEY_ID, // Use secret credentials
+      secretAccessKey: secret.AWS_SECRET_ACCESS_KEY
+    });
+  } catch (err) {
+    // Handle errors if credentials retrieval fails
+    console.error("Error retrieving AWS credentials: ", err);
+  }
 }
 
-// Configure AWS with environment variables and secrets
-// Change: Credentials should be fetched from environment variables or secrets manager
-AWS.config.update({
-  region: process.env.AWS_REGION,
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-});
+// Invoke function to fetch AWS credentials
+getAWSCredentials();
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const tableName = 'Appointments';
 
 // Get all appointments
 app.get('/appointments', async (req, res) => {
-  const params = { TableName: tableName };
+  const params = {
+    TableName: tableName,
+  };
+
   try {
     const data = await dynamoDB.scan(params).promise();
     res.json(data.Items);
@@ -67,9 +79,12 @@ app.post('/appointments', async (req, res) => {
 // Delete an appointment
 app.delete('/appointments/:appointmentId', async (req, res) => {
   const { appointmentId } = req.params;
+
   const params = {
     TableName: tableName,
-    Key: { appointmentId: appointmentId },
+    Key: {
+      appointmentId: appointmentId,
+    },
   };
 
   try {
@@ -85,4 +100,3 @@ app.delete('/appointments/:appointmentId', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on port 5000');
 });
-

@@ -4,10 +4,20 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const AWS = require('aws-sdk');
+const rateLimit = require('express-rate-limit'); // Import rate-limit package
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Set up rate limiting middleware
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: "Too many requests, please try again later."
+});
+
+app.use(limiter); // Apply rate limit to all routes
 
 // Fetch AWS credentials securely from Secrets Manager instead of hardcoding them
 const secretManager = new AWS.SecretsManager();

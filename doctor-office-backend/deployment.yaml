@@ -7,7 +7,7 @@ metadata:
   labels:
     app: backend
 spec:
-  replicas: 1
+  replicas: 2 # Increased replicas for better availability and load distribution
   selector:
     matchLabels:
       app: backend
@@ -21,11 +21,11 @@ spec:
           image: 474668414952.dkr.ecr.us-east-1.amazonaws.com/doctor-office-backend
           resources:
             requests:
-              cpu: "0.3"            
-              memory: "200Mi"
+              cpu: "0.5" # Adjusted to more reasonable values based on testing for load handling
+              memory: "256Mi"
             limits:
-              cpu: "0.7"            
-              memory: "200Mi"        
+              cpu: "1" # Optimized resource limits for better load handling
+              memory: "512Mi"
           ports:
-            - containerPort: 5000
+          - containerPort: 5000
       serviceAccountName: backend-service-account  # Added IAM Role to use appropriate permissions
